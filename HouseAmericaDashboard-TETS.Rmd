@@ -1,0 +1,750 @@
+---
+title: "House America Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: House_log.jpg
+    runtime: shiny
+
+---
+
+<style>
+.navbar, [data-toggle=tab], .navbar-brand  {}
+
+.navbar-logo img {
+    position: absolute;
+    right: 0px;
+}
+</style>
+
+
+
+
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(readxl)
+library(scales)
+library(anytime)
+library(sqldf)
+library(readr)
+library(tidyverse)
+library(lubridate)
+library(shiny)
+
+LastMonth <- month(floor_date(Sys.Date(), "month") - months(1))
+
+#Load Live Data Here !!!!!
+#Weekly Changes - Cumulative Housing 
+Wk_Data  <- read_excel("Live Data/Housing Surge - Weekly Count Live.xlsx")
+
+#Update HERE!
+
+#House
+House <- read_csv("Live Data/Housing Surge - Drilldowns/Homelink_MoveIn 03.03.2022.csv")
+
+#APR
+APR <- read_csv("Live Data/APR - Drilldowns/CoCAPR_ESGCAPER_Oct2022_Sub 03.03.2022.csv")
+
+```
+
+<style>
+ .section.sidebar {
+    overflow-y: hidden;       /* or   overflow: hidden; */
+ }
+ 
+ 
+</style>
+
+
+Inputs {.sidebar data-width=400}
+=====================================
+
+
+$$\\[.01in]$$
+
+```{r, echo=FALSE, out.width = '100%'}
+
+knitr::include_graphics("https://i.ibb.co/CBTbxzJ/House-America-Logo.jpg")
+```
+
+
+<font size="2em"> <b>
+
+<i>House America: An All-Hands-on-Deck Effort to Address the Nation’s Homelessness Crisis </i> is a federal initiative in which the U.S. Department of Housing and Urban Development (HUD) and the U.S. Interagency Council on Homelessness (USICH) are inviting mayors, city and county leaders, tribal nation leaders, and governors into a national partnership. House America will utilize the historic investments provided through the American Rescue Plan to address the crisis of homelessness through a Housing First approach. (referenced from [https://www.hud.gov/house_america](https://www.hud.gov/house_america))
+
+Data included in this dashboard is composed of Move-In Dates [(HMIS Data Element 3.20)](https://files.hudexchange.info/resources/documents/CoC-Program-HMIS-Manual.pdf) and Permanent [Exit Destinations](https://files.hudexchange.info/resources/documents/System-Performance-Measure-7-Housing-Destination-Summary.pdf) to Housing recorded in HMIS 
+
+
+For more information, visit [SARAH's Website](https://sarahomeless.org/)
+
+
+</b>
+</font>
+
+
+```{r, echo=FALSE, out.width = '100%',fig.align="center"}
+knitr::include_graphics("https://i.ibb.co/W3fbDfG/Sarah-Logo2.png")
+```
+<br>
+```{r, echo=FALSE, out.width = '60%', fig.align="center"}
+knitr::include_graphics("https://i.ibb.co/kD1tPrr/logo-Housing-Policy.png")
+```
+
+
+# San Antonio/Bexar County
+
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+
+
+
+```{r , echo=FALSE, include=FALSE}
+
+#House 
+House$MoveInDate <- mdy(House$MoveInDate)
+
+House$MoveInDate
+
+House <- House %>% 
+  mutate(
+    "MoveInMonth" = month(as.Date(House$MoveInDate, format = "%m/%d/%Y")),
+    "MoveInYear" = year(as.Date(House$MoveInDate, format = "%m/%d/%Y"))
+
+  ) %>% 
+  
+  mutate(
+    Mon_Year = paste0(MoveInMonth, "-", MoveInYear)
+  ) %>% 
+  
+  mutate(
+    "ProjectType" = case_when(
+      ProgramName == "AGIF CoC NVOP RC SRO PSH" ~ "OPH",
+      ProgramName == "AGIF CoC NVOP RRH II" ~ "RRH",
+      ProgramName == "AGIF VA SSVF HA Category 2 TX500 RRH" ~ "RRH",
+      ProgramName == "AGIF VA SSVF HA Category 3 TX500 RRH" ~ "RRH",
+      ProgramName == "AGIF VA SSVF HA Category 3 TX607 RRH" ~ "RRH",
+      ProgramName == "BEAT AIDS ESG CV TDHCA RRH" ~ "RRH",
+      ProgramName == "ENDV CoC CY PSH" ~ "PSH",
+      ProgramName == "ENDV CoC FFL PSH" ~ "PSH",
+      ProgramName == "ENDV CoC YHDP Youth Resilient RRH" ~ "YHDP RRH",
+      ProgramName == "ENDV ESG CV TDHCA RRH" ~ "RRH",
+      ProgramName == "ENDV USAA Grant 3 RRH" ~ "RRH",
+      ProgramName == "ENDV USAA RRH" ~ "RRH",
+      ProgramName == "ENDV VA SSVF TX500 RRH" ~ "RRH",
+      ProgramName == "H4H DSHS PSH" ~ "PSH",
+      ProgramName == "H4H ESG CV COSA RRH" ~ "RRH",
+      ProgramName == "H4H ESG CV TDHCA RRH" ~ "RRH",
+      ProgramName == "PROV CoC YHDP Oasis RRH" ~ "YHDP RRH",
+      ProgramName == "SAAF HOPWA TBRA PSH" ~ "PSH",
+      ProgramName == "SAHC ESG CV TDHCA RRH" ~ "RRH",
+      ProgramName == "SAMM Bexar EIP RRH" ~ "RRH",
+      ProgramName == "SAMM Bexar FDC RRH" ~ "RRH",
+      ProgramName == "SAMM CDBG RRH" ~ "RRH",
+      ProgramName == "SAMM CoC Housing First CH Singles PSH" ~ "PSH",
+      ProgramName == "SAMM ESG COSA RRH" ~ "RRH",
+      ProgramName == "SAMM ESG CV COSA RRH" ~ "RRH",
+      ProgramName == "SAMM ESG TDHCA RRH" ~ "RRH",
+      ProgramName == "SAMM HUD RRH" ~ "RRH",
+      ProgramName == "SAMM SAHA Set Aside Voucher PH" ~ "OPH",
+      ProgramName == "SAMM USAA Veteran RRH" ~ "RRH",
+      ProgramName == "SARAH SAHA COVID-19 Voucher PH" ~ "OPH",
+      ProgramName == "SVDP Bexar ESG RRH" ~ "RRH",
+      ProgramName == "SVDP CoC RRH" ~ "RRH",
+      ProgramName == "SVDP COSA ESG RRH" ~ "RRH",
+      ProgramName == "Thrive CoC RRH" ~ "RRH",
+      ProgramName == "Thrive CoC YHDP RRH" ~ "YHDP RRH",
+      ProgramName == "TSA CoC Stepping Forward RRH" ~ "RRH",
+      ProgramName == "TSA ESG CV RRH" ~ "RRH",
+      ProgramName == "UTSA CoC YHDP Housing First RRH" ~ "YHDP RRH",
+      ProgramName == "HABC VASH PSH" ~ "PSH",
+      ProgramName ==  "SAHA H4H Homeless Services Voucher PH" ~ "OPH",
+      ProgramName ==  "SARAH SAHA ARP Emergency Housing Voucher PH" ~ "OPH",
+      ProgramName == "AARC HOPWA TBRA PSH" ~ "PSH",
+      ProgramName == "SARAH SAHA Family Voucher PH" ~ "OPH",
+      ProgramName == "SAHA SARAH Move-On PH" ~ "OPH",
+      ProgramName == "SARAH HABC ARP Emergency Housing Voucher PH" ~ "OPH",
+      ProgramName == "PHCS Navigation PH" ~ "OPH"
+      
+
+      )
+    ) 
+
+
+House <- House %>% filter(MoveInDate >= "2021-10-1" ) 
+
+
+
+House <- House  %>% 
+  #Unqiue 
+  distinct_at(vars(EntityID), .keep_all = TRUE)
+
+```
+
+```{r include=FALSE}
+#APR DATA 
+ 
+#Missing Data is end Date (we use end date because it thats then the exit destination is recorded)
+APR <- APR %>% 
+  mutate(
+    "MoveInMonth" = month(as.Date(APR$Missing_Data, format = "%m/%d/%Y")),
+    "MoveInYear" = year(as.Date(APR$Missing_Data, format = "%m/%d/%Y"))
+  ) %>%
+  
+   mutate(
+    Mon_Year = paste0(MoveInMonth, "-", MoveInYear)
+  ) %>% 
+  
+  #Exit Destinations ===== Only Positive 
+  filter(ExitDestination %in% c(
+   "Long-term care facility or nursing home",
+    "Moved from one HOPWA funded project to HOPWA PH",
+    "Owned by client, no ongoing housing subsidy",
+    "Owned by client, with ongoing housing subsidy",
+    "Permanent housing for formerly homeless persons",
+    "Rental by client, no ongoing housing subsidy",
+    "Rental by client, with GPD TIP housing subsidy",
+    "Rental by client, with other ongoing housing subsidy",
+    "Rental by client, with VASH housing subsidy",
+    "Staying or living with family, permanent tenure",
+    "Staying or living with friends, permanent tenure",
+    "Permanent housing (other than RRH) for formerly homeless persons",
+    "Rental by client in a public housing unit",
+    "Rental by client with HCV voucher (tenant or project based)",
+    "Rental by client, with RRH or equivalent subsidy",
+   "Other Permanent Housing"
+    
+         )
+  ) %>% 
+  mutate(
+    "ProjectType" = case_when(
+      ProgramName == "AGIF VA GPD BRIDGE TH" ~ "TH",
+      ProgramName == "AGIF VA GPD Clinical Treatment TH" ~ "TH",
+      ProgramName == "AGIF VA GPD Low Demand SH" ~ "SH",
+      ProgramName == "AGIF VA GPD SITH TH" ~ "TH",
+      ProgramName == "BEAT AIDS N.E.W. HOPWA TH" ~ "TH",
+      ProgramName == "CC Guadalupe Home TH" ~ "TH",
+      ProgramName == "CHCS PATH Street Outreach" ~ "SO",
+      ProgramName == "CMI ESG CV Street Outreach" ~ "SO",
+      ProgramName == "COSA ESG COVID-19 ICF At Risk ES" ~ "ES",
+      ProgramName == "COSA ESG CV Homeless Hotline Street Outreach" ~ "So",
+      ProgramName == "COSA ESG CV Street Outreach" ~ "SO",
+      ProgramName == "COSA ESG San Fernando Hub Street Outreach" ~ "SO",
+      ProgramName == "H4H COSA Hotel ES" ~ "ES",
+      ProgramName == "H4H Courtyard ES" ~ "ES",
+      ProgramName == "H4H CY COSA DRP ES" ~ "ES",
+      ProgramName == "H4H ESG Street Outreach" ~ "SO",
+      ProgramName == "H4H Master ES" ~ "ES",
+      ProgramName == "H4H VA GPD Bridge Housing TH" ~ "TH",
+      ProgramName == "H4H VA GPD Low Demand SH" ~ "SH",
+      ProgramName == "PROV CoC YHDP Oasis TH" ~ "TH",
+      ProgramName == "RMYA CoC YHDP Mobile Street Outreach" ~ "SO",
+      ProgramName == "RMYA Turning Point TLP TH" ~ "TH",
+      ProgramName == "SAAF HOPWA TH" ~ "TH",
+      ProgramName == "SAMM CoC TLLC TH" ~ "TH",
+      ProgramName == "SAMM ESG CV COSA ES" ~ "ES",
+      ProgramName == "SAMM ESG COSA Street Outreach" ~ "SO",
+      ProgramName == "SAMM ESG CV COSA Street Outreach" ~ "SO",
+      ProgramName == "SAMM ESG TDHCA Street Outreach" ~ "SO",
+      ProgramName == "Thrive COSA ESG Street Outreach" ~ "SO",
+      ProgramName == "TSA Dave Coy Men SSI Dormitory ES" ~ "ES",
+      ProgramName == "TSA Dave Coy Men Workers ES" ~ "ES",
+      ProgramName == "TSA Family BRIDGE ES" ~ "ES",
+      ProgramName == "TSA Family ES" ~ "ES",
+      ProgramName == "TSA Women BRIDGE ES" ~ "ES",
+      ProgramName == "TSA Women ES" ~ "ES"
+      
+      
+    
+ 
+      )
+  ) %>% 
+  filter(!is.na(ProjectType))
+
+  
+APR$APRHELPER <- paste(APR$ProjectType,"",APR$ExitDestination)
+
+APR <- APR %>% 
+  filter(!APRHELPER %in% c("ES  Long-term care facility or nursing home", 
+                           "TH  Long-term care facility or nursing home",
+                           "SH  Long-term care facility or nursing home")) %>% 
+  #ONLY HoH
+  #filter(RelationToHoH == "Self") %>% 
+  
+
+
+  #Unqiue Clients 
+  distinct_at(vars(ClientID), .keep_all = TRUE) 
+
+APR$MoveInDate <- mdy(APR$Missing_Data)
+
+
+APR <- APR %>% filter(MoveInDate >= "2021-10-1" ) 
+
+```
+
+
+```{r include=FALSE}
+
+
+House_Short <- House %>% select(EntityID, ProgramName, ProjectType)
+House_Short$helper <- "House"
+
+names(APR)[1] <- paste("EntityID")
+APR_Short <- APR %>% select(EntityID, ProgramName, ProjectType)
+APR_Short$helper <- "APR"
+
+percent <- function(x, digits = 0, format = "f", ...) {
+  paste0(formatC(100 * x, format = format, digits = digits, ...), "%")
+}
+
+
+House_dta <- rbind(House_Short,APR_Short)
+
+
+House_dta <- House_dta %>% 
+  #Unqiue Clients 
+  distinct_at(vars(EntityID), .keep_all = TRUE)
+
+
+House_dta <- House_dta %>% 
+  group_by(ProjectType) %>% 
+  summarise(
+    "Count" = n()
+
+  )
+
+
+
+
+House_dta <- House_dta %>% 
+    group_by(ProjectType) %>% 
+    summarise(
+      "Count" = sum(Count),
+      "Percent" = sum(Count) / sum(House_dta$Count)
+  )
+
+House_dta$Percent <- percent(House_dta$Percent)
+
+
+House_dta <- House_dta %>% mutate(
+  Project = case_when(
+    ProjectType == "ES" ~ "Emergency Shelter",
+    ProjectType == "OPH" ~ "Other Perm. Housing",
+    ProjectType == "PSH" ~ "Perm. Supporitve Housing ",
+    ProjectType == "RRH" ~ "Rapid Re-Housing",
+    ProjectType == "SO" ~ "Street Outreach",
+    ProjectType == "TH" ~ "Transitional Housing",
+    ProjectType == "YHDP RRH" ~ "YHDP Rapid Re-Housing",
+  ProjectType == "SH" ~ "Safe Haven"
+    
+    
+    
+  ))
+
+
+#Month Breakdown 
+library(data.table)
+Month_Breakdown <- as.data.frame.matrix(table(House$Mon_Year, House$Is_CE_Project))
+setDT(Month_Breakdown, keep.rownames = TRUE)[]
+
+Month_Breakdown <- Month_Breakdown %>% 
+  mutate("Month" = case_when(
+    rn == "8" ~ "Aug",
+    rn == "9" ~ "Sep",
+    rn == "10" ~ "Oct",
+    rn == "11" ~ "Nov",
+    rn == "12" ~ "Dec"
+  ))
+
+
+
+```
+
+
+
+### <font size="3em"> <b> Cumulative Count of Households Permanently Housed OR with Permanent Exit Destination (updated weekly) </b> </font>
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+apr_date <- APR %>% select(EntityID,  ProgramName, ProjectType, MoveInDate, MoveInMonth, MoveInYear) %>% 
+  mutate(MoveInDate = as.Date(MoveInDate))
+names(apr_date)[4] <- paste("MoveInDate")
+apr_date$helper <- "APR"
+apr_date$Is_CE_Project <- "No"
+
+
+
+
+house_date <- House  %>% select(EntityID ,
+                                ProgramName, ProjectType, MoveInDate, MoveInMonth, MoveInYear,Is_CE_Project)
+
+house_date$helper <- "house"
+
+date_data <- rbind(house_date,apr_date)
+
+date_data <- date_data %>% 
+  #Unqiue Clients 
+  distinct_at(vars(EntityID), .keep_all = TRUE)
+
+date_data <- date_data %>% 
+  mutate(Num = week(as.Date(date_data$MoveInDate, format = "%m/%d/%Y"))) %>% 
+  mutate(Year = year(as.Date(date_data$MoveInDate, format = "%m/%d/%Y"))) %>% 
+  mutate(Num_Year = paste0(Num,"-",Year)) %>%
+  
+  mutate(Week = case_when(
+    
+    #2021
+    Num_Year == "40-2021" ~ "10/04/2021",
+    Num_Year == "41-2021" ~ "10/11/2021",
+    Num_Year == "42-2021" ~ "10/18/2021",
+    Num_Year == "43-2021" ~ "10/25/2021",
+    Num_Year == "44-2021" ~ "11/01/2021",
+    Num_Year == "45-2021" ~ "11/08/2021",
+    Num_Year == "46-2021" ~ "11/15/2021",
+    Num_Year == "47-2021" ~ "11/22/2021",
+    Num_Year == "48-2021" ~ "11/29/2021",
+    Num_Year == "49-2021" ~ "12/06/2021",
+    Num_Year == "50-2021" ~ "12/13/2021",
+    Num_Year == "51-2021" ~ "12/20/2021",
+    Num_Year == "52-2021" ~ "12/27/2021",
+    Num_Year == "53-2021" ~ "12/27/2021",
+    
+    #2022
+    Num_Year == "1-2022" ~ "01/03/2022",
+    Num_Year == "2-2022" ~ "01/10/2022",
+    Num_Year == "3-2022" ~ "01/17/2022",
+    Num_Year == "4-2022" ~ "01/24/2022",
+    Num_Year == "5-2022" ~ "01/31/2022",
+    Num_Year == "6-2022" ~ "02/07/2022",
+    Num_Year == "7-2022" ~ "02/14/2022",
+    Num_Year == "8-2022" ~ "02/21/2022",
+    Num_Year == "9-2022" ~ "02/28/2022",
+    Num_Year == "10-2022" ~ "03/07/2022",
+    Num_Year == "11-2022" ~ "03/14/2022",
+    Num_Year == "12-2022" ~ "03/21/2022",
+    Num_Year == "13-2022" ~ "03/28/2022",
+    Num_Year == "14-2022" ~ "04/04/2022",
+    Num_Year == "15-2022" ~ "04/11/2022",
+    Num_Year == "16-2022" ~ "04/18/2022",
+    Num_Year == "17-2022" ~ "04/25/2022",
+    Num_Year == "18-2022" ~ "05/02/2022",
+    Num_Year == "19-2022" ~ "05/09/2022",
+    Num_Year == "20-2022" ~ "05/16/2022",
+    Num_Year == "21-2022" ~ "05/23/2022",
+    Num_Year == "22-2022" ~ "05/30/2022",
+    Num_Year == "23-2022" ~ "06/06/2022",
+    Num_Year == "24-2022" ~ "06/13/2022",
+    Num_Year == "25-2022" ~ "06/20/2022",
+    Num_Year == "26-2022" ~ "06/27/2022",
+    Num_Year == "27-2022" ~ "07/04/2022",
+    Num_Year == "28-2022" ~ "07/11/2022",
+    Num_Year == "29-2022" ~ "07/18/2022",
+    Num_Year == "30-2022" ~ "07/25/2022",
+    Num_Year == "31-2022" ~ "08/01/2022",
+    Num_Year == "32-2022" ~ "08/08/2022",
+    Num_Year == "33-2022" ~ "08/15/2022",
+    Num_Year == "34-2022" ~ "08/22/2022",
+    Num_Year == "35-2022" ~ "08/29/2022",
+    Num_Year == "36-2022" ~ "09/05/2022",
+    Num_Year == "37-2022" ~ "09/12/2022",
+    Num_Year == "38-2022" ~ "09/19/2022",
+    Num_Year == "39-2022" ~ "09/26/2022",
+    Num_Year == "40-2022" ~ "10/03/2022",
+    Num_Year == "41-2022" ~ "10/10/2022",
+    Num_Year == "42-2022" ~ "10/17/2022",
+    Num_Year == "43-2022" ~ "10/24/2022",
+    Num_Year == "44-2022" ~ "10/31/2022",
+    Num_Year == "45-2022" ~ "11/07/2022",
+    Num_Year == "46-2022" ~ "11/14/2022",
+    Num_Year == "47-2022" ~ "11/21/2022",
+    Num_Year == "48-2022" ~ "11/28/2022",
+    Num_Year == "49-2022" ~ "12/05/2022",
+    Num_Year == "50-2022" ~ "12/12/2022",
+    Num_Year == "51-2022" ~ "12/19/2022",
+    Num_Year == "52-2022" ~ "12/26/2022"
+    
+  )) %>% 
+  
+mutate(Week_Single = case_when(
+    
+    #2021
+    Num_Year == "40-2021" ~ "1",
+    Num_Year == "41-2021" ~ "2",
+    Num_Year == "42-2021" ~ "3",
+    Num_Year == "43-2021" ~ "4",
+    Num_Year == "44-2021" ~ "5",
+    Num_Year == "45-2021" ~ "6",
+    Num_Year == "46-2021" ~ "7",
+    Num_Year == "47-2021" ~ "8",
+    Num_Year == "48-2021" ~ "9",
+    Num_Year == "49-2021" ~ "10",
+    Num_Year == "50-2021" ~ "11",
+    Num_Year == "51-2021" ~ "12",
+    Num_Year == "52-2021" ~ "13",
+    Num_Year == "53-2021" ~ "13",
+    
+    #2022
+    Num_Year == "1-2022" ~ "14",
+    Num_Year == "2-2022" ~ "15",
+    Num_Year == "3-2022" ~ "16",
+    Num_Year == "4-2022" ~ "17",
+    Num_Year == "5-2022" ~ "18",
+    Num_Year == "6-2022" ~ "19",
+    Num_Year == "7-2022" ~ "20",
+    Num_Year == "8-2022" ~ "21",
+    Num_Year == "9-2022" ~ "22",
+    Num_Year == "10-2022" ~ "23",
+    Num_Year == "11-2022" ~ "24",
+    Num_Year == "12-2022" ~ "25",
+    Num_Year == "13-2022" ~ "26",
+    Num_Year == "14-2022" ~ "27",
+    Num_Year == "15-2022" ~ "28",
+    Num_Year == "16-2022" ~ "29",
+    Num_Year == "17-2022" ~ "30",
+    Num_Year == "18-2022" ~ "31",
+    Num_Year == "19-2022" ~ "32",
+    Num_Year == "20-2022" ~ "33",
+    Num_Year == "21-2022" ~ "34",
+    Num_Year == "22-2022" ~ "35",
+    Num_Year == "23-2022" ~ "36",
+    Num_Year == "24-2022" ~ "37",
+    Num_Year == "25-2022" ~ "38",
+    Num_Year == "26-2022" ~ "39",
+    Num_Year == "27-2022" ~ "40",
+    Num_Year == "28-2022" ~ "41",
+    Num_Year == "29-2022" ~ "42",
+    Num_Year == "30-2022" ~ "43",
+    Num_Year == "31-2022" ~ "44",
+    Num_Year == "32-2022" ~ "45",
+    Num_Year == "33-2022" ~ "46",
+    Num_Year == "34-2022" ~ "47",
+    Num_Year == "35-2022" ~ "48",
+    Num_Year == "36-2022" ~ "49",
+    Num_Year == "37-2022" ~ "50",
+    Num_Year == "38-2022" ~ "51",
+    Num_Year == "39-2022" ~ "52",
+    Num_Year == "40-2022" ~ "53",
+    Num_Year == "41-2022" ~ "54",
+    Num_Year == "42-2022" ~ "55",
+    Num_Year == "43-2022" ~ "56",
+    Num_Year == "44-2022" ~ "57",
+    Num_Year == "45-2022" ~ "58",
+    Num_Year == "46-2022" ~ "59",
+    Num_Year == "47-2022" ~ "60",
+    Num_Year == "48-2022" ~ "61",
+    Num_Year == "49-2022" ~ "62",
+    Num_Year == "50-2022" ~ "63",
+    Num_Year == "51-2022" ~ "64",
+    Num_Year == "52-2022" ~ "65"
+    
+  )) %>% mutate(Week_Single = as.numeric(Week_Single))
+  
+
+
+
+# date_data <- date_data %>% mutate(Week = mdy(Week))
+# 
+# date_data <- date_data %>% group_by(Week) %>% count() %>% arrange(mdy(Week))
+# 
+# date_data %>% group_by(Week) %>% arrange(mdy(Week)) %>% mutate(cs = cumsum(Week))
+# 
+# Wk_Data2 <- as.data.frame(cumsum(date_data$Week))
+
+helper_table <- date_data %>% group_by(Week,Week_Single) %>% count() %>% arrange(Week_Single)
+
+
+
+
+Wk_Data2 <- as.data.frame(cumsum(table(date_data$Week_Single)))
+setDT(Wk_Data2, keep.rownames = TRUE)[]
+names(Wk_Data2)[1] <- paste("Week_Single")
+names(Wk_Data2)[2] <- paste("Count")
+Wk_Data2$Week_Single <- as.numeric(Wk_Data2$Week_Single)
+
+Wk_Data2 <- left_join(helper_table,Wk_Data2, by = "Week_Single")
+
+
+```
+
+
+```{r echo=FALSE}
+
+#SARAH is currently coordinating with Housing Partners to ensure that all permanently housings are recorded. Information that #populates on this "Tracker" may be delayed or not truly refelctive of the current progress to the Housing Surge goal.
+
+Wk_Data <- Wk_Data2 %>% mutate(Week = mdy(Week))
+
+max <- Wk_Data %>%  arrange(desc(Count)) %>% head(1)
+
+ggplotly(
+  ggplot(Wk_Data, aes(Week, Count)) + 
+    
+
+    
+    #Horizontal Line
+    geom_segment(aes(x= as.Date("2021-10-04"),xend= as.Date("2022-12-26"),y=1500,yend=1500),color = "grey", size = 1.2) +
+    geom_point(aes(x= as.Date("2021-10-04"), y = 1500), color = "grey", fill="white", shape = 21, size = 3) +
+    geom_point(aes(x= as.Date("2022-12-26"), y = 1500), color = "grey", fill="white", shape = 21, size = 3) +
+    
+    annotate(geom="text", x= as.Date("2021-12-01"), y = 1570, label = "House America Goal = 1500", color = "gray40", size=4.25 ) +
+    expand_limits(y=c(0:1750)) +
+    
+    
+    #Line Graph
+    geom_line(col="#7496AF", size = 1.2) +
+    geom_point(col="#7496AF",fill = 'white',shape = 21, size =3) + 
+    geom_text(
+      data = max, aes(Week, Count), 
+      label=max$Count,
+      nudge_y = 100
+    ) +
+    
+    #Y & X Labels
+    labs(x="",y="") +
+    
+    #Scale
+    #scale_x_date(date_breaks = "1 week", date_labels = "%m/%d") +
+    scale_x_date(breaks = seq(min(Wk_Data$Week),as.Date("2022-12-26"),by="month"),
+               labels = date_format(format = "%b %Y")) + 
+    scale_y_continuous(breaks = c(0,250,500,750, 1000, 1250, 1500, 1750)) +
+    #Theme
+    theme_minimal() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+    theme(text = element_text(size=14))  
+)
+
+
+```
+
+
+
+
+
+
+
+
+### <font size="3em"> <b> Households Permanently Housed through OR a Permanent Exit Destination by Project Type </b> </font>
+
+```{r echo=FALSE}
+
+
+ramp4 <- colorRamp(c("#496f8b","#B7D8E6" , "#ffff00" ))
+ramp.list4 <- rgb(ramp4(seq(0, 1, length = 9)), max = 255)
+
+p <- plot_ly(width = 900, height = 400,
+  House_dta,
+  labels = ~ paste0(ProjectType, "<br>", Count, "<br>", Percent),
+  textfont = list(size = 20),
+  parents = NA,
+  values = ~ Count,
+  type = 'treemap',
+  #This will be removed once more data comes in
+  #marker=list(colors=c("#7496AF","#b7d8e6","#496f8b")),
+  hovertemplate = paste(House_dta$Project,"<br>",House_dta$Count, "<br>",House_dta$Percent, "<extra></extra>") 
+) %>%
+  layout(colorway = ramp.list4)  %>%
+  layout(hoverlabel = list(font = list(size = 18)))
+
+p
+```
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+
+### <font size="3em"> Housing Placements in Permanent Housing </font>
+
+```{r}
+
+flexdashboard::valueBox(sum(House_dta$Count), icon = "fas fa-home")
+
+```
+
+### <font size="3em">  Housing Placements needed to Reach Goal of 1500 </font>
+
+```{r}
+x = 1500 - sum(House_dta$Count)
+
+flexdashboard::valueBox(x, icon = "fas fa-sort-amount-down", color = "#ff8f6b")
+
+```
+
+
+### <font size="3em"> Days Remaining in Housing America </font>
+
+```{r}
+time <- as.Date("12/31/2022","%m/%d/%Y")  - Sys.Date()
+
+flexdashboard::valueBox(time, icon = "fas fa-calendar-alt", color = "#af7485")
+
+```
+
+
+### <font size="3em"> Average Monthly Number of Housing Placements </font>
+
+```{r}
+#change this date to August 1st
+months_so_far  <- as.numeric((Sys.Date() - as.Date("10/01/2021","%m/%d/%Y"))) / 30
+months_so_far <- round(months_so_far)
+avg <- round(sum(House_dta$Count) / as.numeric(months_so_far))
+
+flexdashboard::valueBox(avg, icon = "fas fa-file-contract", color = "#7496AF")
+
+```
+
+
+### <b> <font size="3em"> Homelink and Additional Housing Placements </b> </font>
+
+```{r}
+
+
+#piedata <- House %>% 
+ # group_by(Is_CE_Project) %>% 
+#  summarise(
+ #   "Count" = n()
+#) 
+
+#APR$Is_CE_Project <- "No"
+
+piedata <- date_data %>% 
+  group_by(Is_CE_Project) %>% 
+  summarise(
+    "Count" = n()
+) 
+
+
+#piedata <- bind_rows(piedata, apr_pie) %>%
+    #group_by(Is_CE_Project) %>%
+    #summarise_all(funs(sum(., na.rm = TRUE)))
+
+piedata <- piedata %>% 
+  mutate(Category = case_when(
+    Is_CE_Project == "Yes" ~ "Homelink Placements",
+    Is_CE_Project == "No" ~ "Additional Placements",
+  ))
+
+
+piedata %>%
+   plot_ly(labels = ~Category, 
+           values = ~Count, 
+           text = ~paste(round((Count / sum(Count))*100),"%"),
+           textinfo='text' ,
+           marker = list(colors = c('#c1c1c1','#B7D8E6 ')),
+           textfont = list(size = 16),
+           hovertemplate = " %{label}  <br> %{value} <br>  %{text} </b><extra></extra>"
+           ) %>%
+   add_pie(hole = 0.5125) %>%
+  layout(legend = list(font = list(size = 16)),
+         hoverlabel = list(font = list(size = 18))) %>% 
+  layout(legend = list(orientation = 'h', xanchor = "center",x = 0.5))
+
+
+```
+
